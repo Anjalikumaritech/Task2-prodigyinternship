@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Employee Management App</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f4f4f9; color:#333; }
+    header { background:#4f46e5; color:white; padding:16px; display:flex; justify-content:space-between; align-items:center; }
+    header h2 { margin:0; }
+    .container { max-width:1000px; margin:20px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 6px 12px rgba(0,0,0,0.1); }
+    label { display:block; margin-top:8px; font-weight:bold; }
+    input, select { width:100%; padding:8px; margin-top:4px; border:1px solid #ccc; border-radius:6px; }
+    button { padding:8px 12px; margin-top:10px; border:none; border-radius:6px; cursor:pointer; }
+    button.primary { background:#4f46e5; color:white; }
+    button.danger { background:#dc2626; color:white; }
+    button.ghost { background:white; border:1px solid #ccc; }
+    table { width:100%; border-collapse:collapse; margin-top:16px; }
+    th,td { padding:10px; border-bottom:1px solid #eee; text-align:left; }
+    th { background:#f9fafb; }
+    .error { color:#dc2626; margin-top:6px; }
+    .hidden { display:none; }
+    .topbar { display:flex; gap:8px; align-items:center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>Employee Admin</h2>
+    <div id="authBar" class="topbar"></div>
+  </header>
+
+  <div class="container">
+    <div id="loginBox">
+      <h3>Login</h3>
+      <label>Username</label>
+      <input id="loginUser">
+      <label>Password</label>
+      <input id="loginPass" type="password">
+      <button class="primary" onclick="login()">Login</button>
+      <div class="error" id="loginErr"></div>
+    </div>
+
+    <div id="appBox" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3>Employees</h3>
+        <button class="primary" onclick="showForm()">+ New Employee</button>
+      </div>
+
+      <div id="formBox" class="hidden">
+        <h4 id="formTitle">Add Employee</h4>
+        <label>Name</label><input id="f_name">
+        <label>Email</label><input id="f_email">
+        <label>Position</label><input id="f_position">
+        <label>Salary</label><input id="f_salary" type="number">
+        <label>Status</label>
+        <select id="f_active"><option value="1">Active</option><option value="0">Inactive</option></select>
+        <div class="error" id="formErr"></div>
+        <button class="primary" onclick="saveEmployee()">Save</button>
+        <button class="ghost" onclick="hideForm()">Cancel</button>
+      </div>
+
+      <table>
+        <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Position</th><th>Salary</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="empTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+/* ---------- Storage + Auth Simulation ---------- */
+const adminUser = { username:"admin", password:"password" }; // demo admin
+let loggedIn = false;
+let editId = null;
+
+function loadEmployees(){
+  return JSON.parse(localStorage.getItem("employees")||"[]");
+}
+function saveEmployees(list){
+  localStorage.setItem("employees", JSON.stringify(list));
+}
+
+/* ---------- Auth ---------- */
+function login(){
+  const u=document.getElementById("loginUser").value.trim();
+  const p=document.getElementById("loginPass").value;
+  const err=document.getElementById("loginErr");
+  err.innerText="";
+  if(u===adminUser.username && p===adminUser.password){
+    loggedIn=true;
+    render();
+  }else{
+    err.innerText="Invalid credentials (try admin/password)";
+  }
+}
+function logout(){ loggedIn=false; render(); }
+
+/* ---------- UI Rendering ---------- */
+function render(){
+  const authBar=document.getElementById("authBar");
+  const loginBox=document.getElementById("loginBox");
+  const appBox=document.getElementById("appBox");
+  if(!loggedIn){
+    loginBox.classList.remove("hidden");
+    appBox.classList.add("hidden");
+    authBar.innerHTML="";
+  } else {
+    loginBox.classList.add("hidden");
+    appBox.classList.remove("hidden");
+    authBar.innerHTML=`<span>Signed in as <b>${adminUser.username}</b></span>
+                       <button class="ghost" onclick="logout()">Logout</button>`;
+    renderTable();
+  }
+}
+
+function renderTable(){
+  const tbody=document.getElementById("empTable");
+  const data=loadEmployees();
+  tbody.innerHTML="";
+  data.forEach((e,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${i+1}</td>
+      <td>${e.name}</td>
+      <td>${e.email}</td>
+      <td>${e.position}</td>
+      <td>${Number(e.salary).toFixed(2)}</td>
+      <td>${e.active?"Active":"Inactive"}</td>
+      <td>
+        <button class="ghost" onclick="editEmployee(${e.id})">Edit</button>
+        <button class="danger" onclick="deleteEmployee(${e.id})">Delete</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- Form Handling ---------- */
+function showForm(emp){
+  document.getElementById("formBox").classList.remove("hidden");
+  document.getElementById("formErr").innerText="";
+  if(emp){
+    editId=emp.id;
+    document.getElementById("formTitle").innerText="Edit Employee";
+    document.getElementById("f_name").value=emp.name;
+    document.getElementById("f_email").value=emp.email;
+    document.getElementById("f_position").value=emp.position;
+    document.getElementById("f_salary").value=emp.salary;
+    document.getElementById("f_active").value=emp.active?1:0;
+  } else {
+    editId=null;
+    document.getElementById("formTitle").innerText="Add Employee";
+    document.getElementById("f_name").value="";
+    document.getElementById("f_email").value="";
+    document.getElementById("f_position").value="";
+    document.getElementById("f_salary").value="";
+    document.getElementById("f_active").value="1";
+  }
+}
+function hideForm(){ document.getElementById("formBox").classList.add("hidden"); editId=null; }
+
+function saveEmployee(){
+  const name=document.getElementById("f_name").value.trim();
+  const email=document.getElementById("f_email").value.trim();
+  const pos=document.getElementById("f_position").value.trim();
+  const salary=parseFloat(document.getElementById("f_salary").value);
+  const active=document.getElementById("f_active").value==="1";
+  const err=document.getElementById("formErr");
+  err.innerText="";
+
+  if(!name||!email||!pos||isNaN(salary)){ err.innerText="All fields are required"; return; }
+  if(!/^[^@]+@[^@]+\.[^@]+$/.test(email)){ err.innerText="Invalid email"; return; }
+  if(salary<0){ err.innerText="Salary must be >=0"; return; }
+
+  let list=loadEmployees();
+  if(editId){
+    const idx=list.findIndex(e=>e.id===editId);
+    if(idx>=0){ list[idx]={id:editId,name,email,position:pos,salary,active}; }
+  } else {
+    const id=list.length? Math.max(...list.map(e=>e.id))+1:1;
+    list.push({id,name,email,position:pos,salary,active});
+  }
+  saveEmployees(list);
+  hideForm();
+  renderTable();
+}
+
+function editEmployee(id){
+  const emp=loadEmployees().find(e=>e.id===id);
+  if(emp) showForm(emp);
+}
+function deleteEmployee(id){
+  if(!confirm("Delete this employee?")) return;
+  let list=loadEmployees().filter(e=>e.id!==id);
+  saveEmployees(list);
+  renderTable();
+}
+
+/* ---------- Init ---------- */
+render();
+</script>
+</body>
+</html>
